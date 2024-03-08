@@ -1,16 +1,19 @@
 package models;
 
+import java.net.InetAddress;
 import java.security.PublicKey;
 import java.util.ArrayList;
 
 public class ClienteModelo {
     private String nombre;
+    private InetAddress address;
     private int port;
     private ArrayList<Mensaje> mensajes = new ArrayList<>();
     private PublicKey publicKey;
 
-    public ClienteModelo(String nombre, int port) {
+    public ClienteModelo(String nombre, InetAddress address, int port) {
         this.nombre = nombre;
+        this.address = address;
         this.port = port;
     }
 
@@ -20,6 +23,14 @@ public class ClienteModelo {
 
     public void setNombre(String nombre) {
         this.nombre = nombre;
+    }
+
+    public InetAddress getAddress() {
+        return address;
+    }
+
+    public void setAddress(InetAddress address) {
+        this.address = address;
     }
 
     public int getPort() {
@@ -44,5 +55,21 @@ public class ClienteModelo {
 
     public void setPublicKey(PublicKey publicKey) {
         this.publicKey = publicKey;
+    }
+
+    @Override
+    public String toString() {
+        return "ClienteModelo{" +
+                "nombre='" + nombre + '\'' +
+                ", address=" + address +
+                ", port=" + port +
+                ", mensajes=" + mensajes +
+                ", publicKey=" + publicKey +
+                '}';
+    }
+
+    public void addMessage(String mensaje){
+        mensajes.add(new Mensaje(mensaje));
+
     }
 }

@@ -1,7 +1,9 @@
-import java.io.BufferedReader;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.*;
+import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 
@@ -12,11 +14,14 @@ public class Cliente extends Thread{
 
     @Override
     public void run() {
+        String cryptedUsername;
         try{
 
             port = getAvailablePort();
             nombre = Metodos.getString("Dime tu nombre");
             keys = Metodos.generateKeyPairs();
+
+            cryptedUsername = Metodos.encriptar(nombre, keys.getPublic());
 
         } catch (SocketException e) {
             System.out.println("Error generando el puerto");
@@ -27,31 +32,32 @@ public class Cliente extends Thread{
         } catch (NoSuchAlgorithmException e) {
             System.out.println("Error creando las claves");
             throw new RuntimeException(e);
+        } catch (IllegalBlockSizeException e) {
+            System.out.println("Error con la cantidad de bytes para encriptar contraseña");
+        } catch (NoSuchPaddingException e) {
+            e.printStackTrace();
+        } catch (BadPaddingException e) {
+            e.printStackTrace();
+        } catch (InvalidKeyException e) {
+            System.out.println("Clave publica erronea");
         }
-
-        System.out.println(port);
 
         try(DatagramSocket servidor = new DatagramSocket(port)){
             //reasigno el puerto por si el metodo devuelve 0 y se ha usado el primer puerto disponible
             port = servidor.getLocalPort();
 
             //envio al servidor el nombre de este cliente
+            //byte[] paqueteBytes = nombre.getBytes();
             byte[] paqueteBytes = nombre.getBytes();
             DatagramPacket paquete = new DatagramPacket(paqueteBytes, paqueteBytes.length, InetAddress.getLoopbackAddress(),Servidor.PORT);
             servidor.send(paquete);
 
-            byte[] bytesPaquetes = new byte[1024];
-
-            //representa el paquete que le han enviado
-            DatagramPacket paqueteRecivido = new DatagramPacket(bytesPaquetes, bytesPaquetes.length);
-            servidor.receive(paqueteRecivido);
-            //el offset es The index of the first byte to decode
-            String paqueteString = new String(paqueteRecivido.getData(),0, paqueteRecivido.getLength()).toUpperCase();
-            System.out.println(paqueteString);
+            String respuestaServidor;
 
             while(true){
-                Metodos.getString("Escribe un mensaje: ");
-                escribirAlServidor();
+                escribirAlServidor(servidor,Metodos.getString("Escribe un mensaje: "));
+                respuestaServidor = recibirMensajeServidor(servidor);
+                System.out.println(respuestaServidor);
             }
 
         } catch(BindException be){
@@ -62,8 +68,20 @@ public class Cliente extends Thread{
         }
     }
 
-    private void escribirAlServidor() {
+    private String recibirMensajeServidor(DatagramSocket servidor) throws IOException {
+        byte[] bytesPaquetes = new byte[1024];
 
+        //representa el paquete que le han enviado
+        DatagramPacket paqueteRecibido = new DatagramPacket(bytesPaquetes, bytesPaquetes.length);
+        servidor.receive(paqueteRecibido);
+        //el offset es The index of the first byte to decode
+        return new String(paqueteRecibido.getData(),0, paqueteRecibido.getLength());
+    }
+
+    private void escribirAlServidor(DatagramSocket servidor, String mensaje) throws IOException {
+        byte[] paqueteBytes = mensaje.getBytes();
+        DatagramPacket paquete = new DatagramPacket(paqueteBytes, paqueteBytes.length, InetAddress.getLoopbackAddress(),Servidor.PORT);
+        servidor.send(paquete);
     }
 
     /**
@@ -75,7 +93,7 @@ public class Cliente extends Thread{
         int availablePort = 0;
         try(DatagramSocket servidor = new DatagramSocket(0)){
             availablePort = servidor.getLocalPort();
-            System.out.println("desde metodo, el puerto es: " + availablePort);
+            //System.out.println("desde metodo, el puerto es: " + availablePort);
         }
         return availablePort;
     }
