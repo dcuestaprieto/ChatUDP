@@ -72,4 +72,8 @@ public class ClienteModelo {
         mensajes.add(new Mensaje(mensaje));
 
     }
+
+    public boolean hasPublicKey() {
+        return publicKey != null;
+    }
 }

@@ -19,13 +19,14 @@ public class Metodos {
 
     public static KeyPair generateKeyPairs() throws NoSuchAlgorithmException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-        generator.initialize(4096);
+        generator.initialize(2048);
         return generator.generateKeyPair();
     }
     public static String encriptar(String dato, PublicKey publicKey) throws IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE,publicKey);
         byte[] bytesEncriptados = cipher.doFinal(dato.getBytes());
+        System.out.println(bytesEncriptados.length);
         return Base64.getEncoder().encodeToString(bytesEncriptados);
     }
     public static String desencriptar(String datoEncriptado, PrivateKey privateKey) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

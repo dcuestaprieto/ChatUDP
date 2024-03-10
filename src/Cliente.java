@@ -6,22 +6,34 @@ import java.net.*;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 
 public class Cliente extends Thread{
     private String nombre;
     private int port;
     private KeyPair keys;
+    public PublicKey publicKey;
+    public static final String DELIMITER = "#############";
+
+    public Cliente() throws NoSuchAlgorithmException {
+        //en el constructor genero las claves publicas del cliente
+        keys = Metodos.generateKeyPairs();
+        publicKey = keys.getPublic();
+    }
 
     @Override
     public void run() {
-        String cryptedUsername;
+        String cryptedFirtsMessage = "";
         try{
 
             port = getAvailablePort();
             nombre = Metodos.getString("Dime tu nombre");
             keys = Metodos.generateKeyPairs();
 
-            cryptedUsername = Metodos.encriptar(nombre, keys.getPublic());
+
+            cryptedFirtsMessage = Metodos.encriptar(nombre,Servidor.serverPublicKey);
+
+
 
         } catch (SocketException e) {
             System.out.println("Error generando el puerto");
@@ -32,25 +44,33 @@ public class Cliente extends Thread{
         } catch (NoSuchAlgorithmException e) {
             System.out.println("Error creando las claves");
             throw new RuntimeException(e);
-        } catch (IllegalBlockSizeException e) {
-            System.out.println("Error con la cantidad de bytes para encriptar contraseña");
         } catch (NoSuchPaddingException e) {
             e.printStackTrace();
         } catch (BadPaddingException e) {
             e.printStackTrace();
         } catch (InvalidKeyException e) {
             System.out.println("Clave publica erronea");
+        } catch (IllegalBlockSizeException e) {
+            throw new RuntimeException(e);
         }
 
         try(DatagramSocket servidor = new DatagramSocket(port)){
             //reasigno el puerto por si el metodo devuelve 0 y se ha usado el primer puerto disponible
             port = servidor.getLocalPort();
 
-            //envio al servidor el nombre de este cliente
             //byte[] paqueteBytes = nombre.getBytes();
-            byte[] paqueteBytes = nombre.getBytes();
-            DatagramPacket paquete = new DatagramPacket(paqueteBytes, paqueteBytes.length, InetAddress.getLoopbackAddress(),Servidor.PORT);
-            servidor.send(paquete);
+            //envio al servidor el nombre de este cliente encriptado solo si no está vacío
+            if(!cryptedFirtsMessage.isBlank()){
+                System.out.println(cryptedFirtsMessage);
+                byte[] paqueteBytes = cryptedFirtsMessage.getBytes();
+                DatagramPacket paquete = new DatagramPacket(paqueteBytes, paqueteBytes.length, InetAddress.getLoopbackAddress(),Servidor.PORT);
+                servidor.send(paquete);
+            }else{
+                System.out.println(cryptedFirtsMessage);
+                System.out.println("Nombre de usuario inválido");
+            }
+
+            mandarClavePublica(servidor, publicKey);
 
             String respuestaServidor;
 
@@ -66,6 +86,13 @@ public class Cliente extends Thread{
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void mandarClavePublica(DatagramSocket servidor, PublicKey publicKey) throws IOException {
+        byte[] bytesPublicKey = publicKey.getEncoded();
+
+        DatagramPacket packetPublicKey = new DatagramPacket(bytesPublicKey, bytesPublicKey.length, Servidor.SERVER_IP,Servidor.PORT);
+        servidor.send(packetPublicKey);
     }
 
     private String recibirMensajeServidor(DatagramSocket servidor) throws IOException {
@@ -98,7 +125,7 @@ public class Cliente extends Thread{
         return availablePort;
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws NoSuchAlgorithmException {
         Cliente cliente = new Cliente();
         cliente.start();
     }
