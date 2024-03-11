@@ -28,13 +28,12 @@ public class Servidor {
     }
 
     private static final Map<Integer,ClienteModelo> clientes = new HashMap<>();
-    private static KeyPair serverKeys;
     public static PublicKey serverPublicKey;
-    private static PrivateKey serverPrivateKey;
+    public static PrivateKey serverPrivateKey;
 
     static {
         try {
-            serverKeys = Metodos.generateKeyPairs();
+            KeyPair serverKeys = Metodos.generateKeyPairs();
             serverPublicKey = serverKeys.getPublic();
             serverPrivateKey = serverKeys.getPrivate();
         } catch (NoSuchAlgorithmException e) {
@@ -54,13 +53,19 @@ public class Servidor {
                 //Espero a recibir paquetes
                 servidor.receive(paquete);
 
-                //el offset es The index of the first byte to decode
-                //convierto a string el paquete recibido. Este debe ser el nombre del usuario
+                //convierto a string el paquete recibido.
                 String mensajeCliente = new String(paquete.getData(), 0, paquete.getLength());
-                //System.out.println(username);
+                System.out.println("El cliente ha enviado: "+mensajeCliente);
+                try {
+                    String prueba = Metodos.desencriptar(mensajeCliente, Servidor.serverPrivateKey);
+                    System.out.println(prueba);
+                } catch (NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
+                         InvalidKeyException e) {
+                    e.printStackTrace();
+                }
 
                 if(clienteExisteEnMap(paquete.getPort())){
-                    if(clientes.get(paquete.getPort()).hasPublicKey()){
+                    if(!clientes.get(paquete.getPort()).hasPublicKey()){
                         /*
                          * en caso de que entre aqui es que el cliente existe en el map pero no tiene una clave publica,
                          * por lo que sería el segundo mensaje mandado por el cliente
@@ -68,20 +73,21 @@ public class Servidor {
                          * El cliente envia como primer mensaje su nombre de usuario, y luego su clave publica
                          */
                         clientes.get(paquete.getPort()).setPublicKey(convertirBytesEnClavePublica(servidor));
+                        System.out.println(clientes.get(paquete.getPort()).getPublicKey());
+                    }else {
+                        /*
+                         * si entra aquí es que el usuario que ha mandado mensaje está registrado en el map y tiene public key,
+                         * por lo que solo queda que sea mensaje
+                         */
+                        esMensaje = true;
+                        //añado el paquete a su lista de mensajes
+                        clientes.get(paquete.getPort()).addMessage(mensajeCliente);
                     }
-                    //debido a que en el map hay una clave con el valor que he recibido del cliente, considero que es un mensaje
-                    esMensaje = true;
-                    //añado el paquete a su lista de mensajes ya que no es el primer mensaje que me envia por lo que es un mensaje y no su nombre de usuario
-                    clientes.get(paquete.getPort()).addMessage(mensajeCliente);
                 }else {
                     try{
 
-                        String cadena = "hola mundo";
-                        String cadenaCrypt = Metodos.encriptar(cadena,Servidor.serverPublicKey);
-                        String cadenaDecrypt = Metodos.desencriptar(cadenaCrypt, serverPrivateKey);
-                        System.out.println(cadenaDecrypt);
-
                         System.out.println("la publica encriptada es: "+mensajeCliente);
+                        System.out.println("la publica desencriptada es: "+Metodos.desencriptar(mensajeCliente,serverPrivateKey));
                         String stringUserData = Metodos.desencriptar(mensajeCliente,serverPrivateKey);
 
                         System.out.println(stringUserData);

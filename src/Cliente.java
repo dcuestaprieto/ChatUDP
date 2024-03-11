@@ -3,37 +3,32 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.io.IOException;
 import java.net.*;
-import java.security.InvalidKeyException;
-import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
+import java.security.*;
 
 public class Cliente extends Thread{
     private String nombre;
     private int port;
-    private KeyPair keys;
     public PublicKey publicKey;
+    public PrivateKey privateKey;
     public static final String DELIMITER = "#############";
 
-    public Cliente() throws NoSuchAlgorithmException {
-        //en el constructor genero las claves publicas del cliente
-        keys = Metodos.generateKeyPairs();
-        publicKey = keys.getPublic();
+    public static void main(String[] args) {
+        Cliente cliente = new Cliente();
+        cliente.start();
     }
 
     @Override
     public void run() {
         String cryptedFirtsMessage = "";
         try{
-
+            //genero los atributos de clase
             port = getAvailablePort();
+            //pido el nombre del cliente
             nombre = Metodos.getString("Dime tu nombre");
-            keys = Metodos.generateKeyPairs();
-
-
-            cryptedFirtsMessage = Metodos.encriptar(nombre,Servidor.serverPublicKey);
-
-
+            //genero las claves publicas y privadas y las establezco
+            KeyPair serverKeys = Metodos.generateKeyPairs();
+            publicKey = serverKeys.getPublic();
+            privateKey = serverKeys.getPrivate();
 
         } catch (SocketException e) {
             System.out.println("Error generando el puerto");
@@ -44,33 +39,31 @@ public class Cliente extends Thread{
         } catch (NoSuchAlgorithmException e) {
             System.out.println("Error creando las claves");
             throw new RuntimeException(e);
-        } catch (NoSuchPaddingException e) {
-            e.printStackTrace();
-        } catch (BadPaddingException e) {
-            e.printStackTrace();
-        } catch (InvalidKeyException e) {
-            System.out.println("Clave publica erronea");
-        } catch (IllegalBlockSizeException e) {
-            throw new RuntimeException(e);
         }
 
         try(DatagramSocket servidor = new DatagramSocket(port)){
             //reasigno el puerto por si el metodo devuelve 0 y se ha usado el primer puerto disponible
             port = servidor.getLocalPort();
+            //encripto el nombre del cliente
+            cryptedFirtsMessage = Metodos.encriptar(nombre,Servidor.serverPublicKey);
+            System.out.println(cryptedFirtsMessage);
+
+            String prueba = Metodos.desencriptar(cryptedFirtsMessage, Servidor.serverPrivateKey);
+            System.out.println("nombre usuario desencriptado: "+prueba);
 
             //byte[] paqueteBytes = nombre.getBytes();
             //envio al servidor el nombre de este cliente encriptado solo si no está vacío
             if(!cryptedFirtsMessage.isBlank()){
-                System.out.println(cryptedFirtsMessage);
-                byte[] paqueteBytes = cryptedFirtsMessage.getBytes();
+                escribirAlServidor(servidor,cryptedFirtsMessage);
+                /*byte[] paqueteBytes = cryptedFirtsMessage.getBytes();
                 DatagramPacket paquete = new DatagramPacket(paqueteBytes, paqueteBytes.length, InetAddress.getLoopbackAddress(),Servidor.PORT);
-                servidor.send(paquete);
+                servidor.send(paquete);*/
             }else{
-                System.out.println(cryptedFirtsMessage);
+                //System.out.println(cryptedFirtsMessage);
                 System.out.println("Nombre de usuario inválido");
             }
 
-            mandarClavePublica(servidor, publicKey);
+            //mandarClavePublica(servidor, publicKey);
 
             String respuestaServidor;
 
@@ -83,8 +76,11 @@ public class Cliente extends Thread{
         } catch(BindException be){
             System.out.println("Puerto ya en uso.");
             throw new RuntimeException(be);
-        } catch (IOException e) {
+        } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | IllegalBlockSizeException e) {
             throw new RuntimeException(e);
+        } catch (NoSuchPaddingException | BadPaddingException e) {
+            e.printStackTrace();
+            System.out.println("Error de padding");
         }
     }
 
@@ -120,13 +116,7 @@ public class Cliente extends Thread{
         int availablePort = 0;
         try(DatagramSocket servidor = new DatagramSocket(0)){
             availablePort = servidor.getLocalPort();
-            //System.out.println("desde metodo, el puerto es: " + availablePort);
         }
         return availablePort;
-    }
-
-    public static void main(String[] args) throws NoSuchAlgorithmException {
-        Cliente cliente = new Cliente();
-        cliente.start();
     }
 }
