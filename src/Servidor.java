@@ -46,7 +46,7 @@ public class Servidor {
             byte[] bytesPaquetes;
             boolean esMensaje = false;
             while(true) {
-                bytesPaquetes = new byte[1024];
+                bytesPaquetes = new byte[2048];
 
                 //representa el paquete que le han enviado
                 DatagramPacket paquete = new DatagramPacket(bytesPaquetes, bytesPaquetes.length);
@@ -55,25 +55,28 @@ public class Servidor {
 
                 //convierto a string el paquete recibido.
                 String mensajeCliente = new String(paquete.getData(), 0, paquete.getLength());
-                System.out.println("El cliente ha enviado: "+mensajeCliente);
-                try {
-                    String prueba = Metodos.desencriptar(mensajeCliente, Servidor.serverPrivateKey);
-                    System.out.println(prueba);
-                } catch (NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
-                         InvalidKeyException e) {
-                    e.printStackTrace();
-                }
+                //String prueba = Metodos.desencriptar(mensajeCliente, Servidor.serverPrivateKey);
+                //System.out.println(prueba);
 
                 if(clienteExisteEnMap(paquete.getPort())){
+                    ClienteModelo currentClient = clientes.get(paquete.getPort());
+                    System.out.println(currentClient.getNombre()+" ya existe");
                     if(!clientes.get(paquete.getPort()).hasPublicKey()){
+                        System.out.println(currentClient.getNombre()+" no tiene clave publica");
                         /*
                          * en caso de que entre aqui es que el cliente existe en el map pero no tiene una clave publica,
                          * por lo que sería el segundo mensaje mandado por el cliente
                          * asi que le añado su clave publica, que es el mensaje que ha mandado.
                          * El cliente envia como primer mensaje su nombre de usuario, y luego su clave publica
                          */
-                        clientes.get(paquete.getPort()).setPublicKey(convertirBytesEnClavePublica(servidor));
-                        System.out.println(clientes.get(paquete.getPort()).getPublicKey());
+                        try{
+                            PublicKey publicKey =
+                                    KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(paquete.getData()));
+                            clientes.get(paquete.getPort()).setPublicKey(publicKey);
+                            System.out.println("clave publica de "+currentClient.getNombre()+" añadida");
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
                     }else {
                         /*
                          * si entra aquí es que el usuario que ha mandado mensaje está registrado en el map y tiene public key,
@@ -82,33 +85,26 @@ public class Servidor {
                         esMensaje = true;
                         //añado el paquete a su lista de mensajes
                         clientes.get(paquete.getPort()).addMessage(mensajeCliente);
+                        System.out.println("mensaje de "+currentClient.getNombre()+": "+mensajeCliente);
                     }
                 }else {
-                    try{
 
-                        System.out.println("la publica encriptada es: "+mensajeCliente);
-                        System.out.println("la publica desencriptada es: "+Metodos.desencriptar(mensajeCliente,serverPrivateKey));
-                        String stringUserData = Metodos.desencriptar(mensajeCliente,serverPrivateKey);
-
-                        System.out.println(stringUserData);
-
-                        //cuando el cliente se conecta por primera vez tengo acceso a su nombre y a su clave publica
-                        clientes.put(paquete.getPort(),new ClienteModelo(stringUserData, paquete.getAddress(),paquete.getPort()));
-                        System.out.println("Usuario añadido");
-                        System.out.println(clientes.get(paquete.getPort()).getPublicKey());
-                    } catch (NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException e) {
-                        e.printStackTrace();
-                        throw new RuntimeException(e);
-                    }
+                    //cuando el cliente se conecta por primera vez tengo acceso a su nombre
+                    clientes.put(paquete.getPort(),new ClienteModelo(mensajeCliente, paquete.getAddress(),paquete.getPort()));
+                    System.out.println("Usuario añadido");
                 }
-                clientes.forEach((key, value)->{
-                    System.out.println(key+" contiene "+value.toString());
-                });
 
                 //si esMensaje es true es que el servidor ha recibido un mensaje, por lo que este se debe reenviar a los usuarios
                 if(esMensaje){
                     clientes.forEach((key, client) -> {
-                        //System.out.println(key + " contiene " + client.getNombre());
+                        try{
+                            String mensajeEncriptado = Metodos.encriptar(mensajeCliente,client.getPublicKey());
+                            System.out.println(mensajeEncriptado);
+                        } catch (IllegalBlockSizeException | NoSuchPaddingException | BadPaddingException |
+                                 NoSuchAlgorithmException | InvalidKeyException e) {
+                            System.out.println("Error reenviando mensaje encriptado al cliente "+client.getNombre());
+                            throw new RuntimeException(e);
+                        }
                         //cambiar para que no sea este string si no el mensaje que haya recibido de cada usuario
                         byte[] bytesMensajeParaCliente =  mensajeCliente.getBytes();
 
@@ -126,27 +122,7 @@ public class Servidor {
 
         } catch (IOException e) {
             throw new RuntimeException(e);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            e.printStackTrace();
-            System.out.println("Error convirtiendo la clave publica del cliente");
         }
-    }
-
-    private static PublicKey convertirBytesEnClavePublica(DatagramSocket servidor) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        // Crear un buffer para recibir los datos
-        byte[] buffer = new byte[2048];
-
-        // Recibir el paquete del cliente
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-        servidor.receive(packet);
-
-        // Convertir los datos recibidos en una instancia de PublicKey
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PublicKey publicKey = keyFactory.generatePublic(new X509EncodedKeySpec(packet.getData()));
-
-        // Imprimir la clave pública recibida
-        System.out.println("Clave pública recibida: " + publicKey);
-        return publicKey;
     }
 
     private static boolean clienteExisteEnMap(int userPort) {

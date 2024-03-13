@@ -45,25 +45,14 @@ public class Cliente extends Thread{
             //reasigno el puerto por si el metodo devuelve 0 y se ha usado el primer puerto disponible
             port = servidor.getLocalPort();
             //encripto el nombre del cliente
-            cryptedFirtsMessage = Metodos.encriptar(nombre,Servidor.serverPublicKey);
+            //cryptedFirtsMessage = Metodos.encriptar(nombre,Servidor.serverPublicKey);
             System.out.println(cryptedFirtsMessage);
-
-            String prueba = Metodos.desencriptar(cryptedFirtsMessage, Servidor.serverPrivateKey);
-            System.out.println("nombre usuario desencriptado: "+prueba);
+            escribirAlServidor(servidor,nombre);
 
             //byte[] paqueteBytes = nombre.getBytes();
-            //envio al servidor el nombre de este cliente encriptado solo si no está vacío
-            if(!cryptedFirtsMessage.isBlank()){
-                escribirAlServidor(servidor,cryptedFirtsMessage);
-                /*byte[] paqueteBytes = cryptedFirtsMessage.getBytes();
-                DatagramPacket paquete = new DatagramPacket(paqueteBytes, paqueteBytes.length, InetAddress.getLoopbackAddress(),Servidor.PORT);
-                servidor.send(paquete);*/
-            }else{
-                //System.out.println(cryptedFirtsMessage);
-                System.out.println("Nombre de usuario inválido");
-            }
 
-            //mandarClavePublica(servidor, publicKey);
+            mandarClavePublica(servidor, publicKey);
+            System.out.println(publicKey);
 
             String respuestaServidor;
 
@@ -71,16 +60,14 @@ public class Cliente extends Thread{
                 escribirAlServidor(servidor,Metodos.getString("Escribe un mensaje: "));
                 respuestaServidor = recibirMensajeServidor(servidor);
                 System.out.println(respuestaServidor);
+
             }
 
         } catch(BindException be){
             System.out.println("Puerto ya en uso.");
             throw new RuntimeException(be);
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | IllegalBlockSizeException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
-        } catch (NoSuchPaddingException | BadPaddingException e) {
-            e.printStackTrace();
-            System.out.println("Error de padding");
         }
     }
 
