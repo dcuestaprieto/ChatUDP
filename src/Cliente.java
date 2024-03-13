@@ -44,23 +44,23 @@ public class Cliente extends Thread{
         try(DatagramSocket servidor = new DatagramSocket(port)){
             //reasigno el puerto por si el metodo devuelve 0 y se ha usado el primer puerto disponible
             port = servidor.getLocalPort();
-            //encripto el nombre del cliente
-            //cryptedFirtsMessage = Metodos.encriptar(nombre,Servidor.serverPublicKey);
+            //encripto el nombre del clientes
             System.out.println(cryptedFirtsMessage);
             escribirAlServidor(servidor,nombre);
-
-            //byte[] paqueteBytes = nombre.getBytes();
-
             mandarClavePublica(servidor, publicKey);
-            System.out.println(publicKey);
 
             String respuestaServidor;
 
             while(true){
-                escribirAlServidor(servidor,Metodos.getString("Escribe un mensaje: "));
-                respuestaServidor = recibirMensajeServidor(servidor);
-                System.out.println(respuestaServidor);
-
+                String mensajeParaServidor = Metodos.getString("Escribe un mensaje: ");
+                if(!mensajeParaServidor.equals("exit")){
+                    escribirAlServidor(servidor,mensajeParaServidor);
+                    respuestaServidor = recibirMensajeServidor(servidor);
+                    System.out.println(respuestaServidor);
+                }else{
+                    escribirAlServidor(servidor,"exit");
+                    break;
+                }
             }
 
         } catch(BindException be){
@@ -84,8 +84,16 @@ public class Cliente extends Thread{
         //representa el paquete que le han enviado
         DatagramPacket paqueteRecibido = new DatagramPacket(bytesPaquetes, bytesPaquetes.length);
         servidor.receive(paqueteRecibido);
-        //el offset es The index of the first byte to decode
-        return new String(paqueteRecibido.getData(),0, paqueteRecibido.getLength());
+        String mensajeEncriptado = new String(paqueteRecibido.getData(),0, paqueteRecibido.getLength());
+        String mensajeDesencriptado;
+        try{
+            mensajeDesencriptado = Metodos.desencriptar(mensajeEncriptado,privateKey);
+        } catch (IllegalBlockSizeException | NoSuchPaddingException | BadPaddingException |
+                 NoSuchAlgorithmException | InvalidKeyException e) {
+            System.out.println("Error desencriptando el mensaje del servidor");
+            throw new RuntimeException(e);
+        }
+        return mensajeDesencriptado;
     }
 
     private void escribirAlServidor(DatagramSocket servidor, String mensaje) throws IOException {

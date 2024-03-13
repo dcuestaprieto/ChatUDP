@@ -9,9 +9,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -55,14 +53,11 @@ public class Servidor {
 
                 //convierto a string el paquete recibido.
                 String mensajeCliente = new String(paquete.getData(), 0, paquete.getLength());
-                //String prueba = Metodos.desencriptar(mensajeCliente, Servidor.serverPrivateKey);
-                //System.out.println(prueba);
 
                 if(clienteExisteEnMap(paquete.getPort())){
+                    //si entra aqui es que el cliente sí existe en el map de clientes
                     ClienteModelo currentClient = clientes.get(paquete.getPort());
-                    System.out.println(currentClient.getNombre()+" ya existe");
                     if(!clientes.get(paquete.getPort()).hasPublicKey()){
-                        System.out.println(currentClient.getNombre()+" no tiene clave publica");
                         /*
                          * en caso de que entre aqui es que el cliente existe en el map pero no tiene una clave publica,
                          * por lo que sería el segundo mensaje mandado por el cliente
@@ -83,9 +78,16 @@ public class Servidor {
                          * por lo que solo queda que sea mensaje
                          */
                         esMensaje = true;
-                        //añado el paquete a su lista de mensajes
-                        clientes.get(paquete.getPort()).addMessage(mensajeCliente);
-                        System.out.println("mensaje de "+currentClient.getNombre()+": "+mensajeCliente);
+                        if(!mensajeCliente.equals("exit")){
+                            //si el mensaje es diferente de exit, lo añado el paquete a su lista de mensajes
+                            clientes.get(paquete.getPort()).addMessage(mensajeCliente);
+                            System.out.println("mensaje de "+currentClient.getNombre()+": "+mensajeCliente);
+                        }else{
+                            System.out.println("Adios "+currentClient.getNombre());
+                            clientes.remove(currentClient.getPort());
+                            mensajeCliente = "El usuario "+currentClient.getNombre()+" se ha desconectado";
+                        }
+
                     }
                 }else {
 
@@ -96,17 +98,21 @@ public class Servidor {
 
                 //si esMensaje es true es que el servidor ha recibido un mensaje, por lo que este se debe reenviar a los usuarios
                 if(esMensaje){
+                    //creo otra variable ya que en una lambda las variables que se usan no deben cambiar de valor
+                    String finalMensajeCliente = mensajeCliente;
                     clientes.forEach((key, client) -> {
+                        //String mensajeParaEncriptar = mensajeCliente.concat(" "+client)
+                        String mensajeEncriptado;
                         try{
-                            String mensajeEncriptado = Metodos.encriptar(mensajeCliente,client.getPublicKey());
-                            System.out.println(mensajeEncriptado);
+                            //Encripto el mensaje del cliente
+                            mensajeEncriptado = Metodos.encriptar(finalMensajeCliente,client.getPublicKey());
                         } catch (IllegalBlockSizeException | NoSuchPaddingException | BadPaddingException |
                                  NoSuchAlgorithmException | InvalidKeyException e) {
                             System.out.println("Error reenviando mensaje encriptado al cliente "+client.getNombre());
                             throw new RuntimeException(e);
                         }
-                        //cambiar para que no sea este string si no el mensaje que haya recibido de cada usuario
-                        byte[] bytesMensajeParaCliente =  mensajeCliente.getBytes();
+                        //Obtengo los bytes del mensaje encriptado
+                        byte[] bytesMensajeParaCliente =  mensajeEncriptado.getBytes();
 
                         //le devuelvo el paquete enviado en mayusculas
                         DatagramPacket paqueteVuelta = new DatagramPacket(bytesMensajeParaCliente, bytesMensajeParaCliente.length, client.getAddress(), client.getPort());
@@ -116,6 +122,7 @@ public class Servidor {
                             System.out.println("Error mandando mensaje a: "+client.getNombre());
                         }
                     });
+                    //Una vez ha entrado al if de es mensaje, pongo a false la variable por si el siguiente mensaje lo manda otro usuario que no está regitrado
                     esMensaje = false;
                 }
             }
@@ -128,18 +135,5 @@ public class Servidor {
     private static boolean clienteExisteEnMap(int userPort) {
         return clientes.entrySet().stream().anyMatch(map -> map.getValue().getPort() == userPort);
     }
-    public static PublicKey stringToPublicKey(String publicKeyString) throws Exception {
-        byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyString);
-        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA"); // Cambia "RSA" por el algoritmo de tu clave pública
-        return keyFactory.generatePublic(keySpec);
-    }
 
-    private static DatagramPacket getDatagramPacket(DatagramPacket paquete) {
-        String paqueteVueltaString = "hola mundo";
-        byte[] paqueteVueltaBytes = paqueteVueltaString.getBytes();
-
-        //DatagramPacket paqueteVuelta = new DatagramPacket(paqueteVueltaBytes, paqueteVueltaBytes.length, InetAddress.getLoopbackAddress(),12345);
-        return new DatagramPacket(paqueteVueltaBytes, paqueteVueltaBytes.length, paquete.getAddress(), paquete.getPort());
-    }
 }
