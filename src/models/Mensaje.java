@@ -1,10 +1,11 @@
 package models;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class Mensaje {
     private String username;
-    private LocalDate createdAt = LocalDate.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     public Mensaje(String username) {
         this.username = username;
@@ -18,11 +19,11 @@ public class Mensaje {
         this.username = username;
     }
 
-    public LocalDate getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDate createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 }
