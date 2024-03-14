@@ -26,7 +26,6 @@ public class Metodos {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE,publicKey);
         byte[] bytesEncriptados = cipher.doFinal(dato.getBytes());
-        System.out.println(bytesEncriptados.length);
         return Base64.getEncoder().encodeToString(bytesEncriptados);
     }
     public static String desencriptar(String datoEncriptado, PrivateKey privateKey) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
