@@ -10,7 +10,6 @@ public class Cliente extends Thread{
     private int port;
     public PublicKey publicKey;
     public PrivateKey privateKey;
-    public static final String DELIMITER = "#############";
 
     public static void main(String[] args) {
         Cliente cliente = new Cliente();
@@ -55,12 +54,12 @@ public class Cliente extends Thread{
                 String mensajeParaServidor = Metodos.getString("Escribe un mensaje: ");
                 if(!mensajeParaServidor.equals("exit")){
                     escribirAlServidor(servidor,mensajeParaServidor);
-                    respuestaServidor = recibirMensajeServidor(servidor);
-                    System.out.println(respuestaServidor);
                 }else{
                     escribirAlServidor(servidor,"exit");
                     break;
                 }
+                respuestaServidor = recibirMensajeServidor(servidor);
+                System.out.println(respuestaServidor);
             }
 
         } catch(BindException be){

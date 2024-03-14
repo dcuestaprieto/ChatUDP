@@ -1,4 +1,5 @@
 import models.ClienteModelo;
+import models.Mensaje;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -82,6 +83,9 @@ public class Servidor {
                             //si el mensaje es diferente de exit, lo añado el paquete a su lista de mensajes
                             clientes.get(paquete.getPort()).addMessage(mensajeCliente);
                             System.out.println("mensaje de "+currentClient.getNombre()+": "+mensajeCliente);
+                            //Obtengo el último mensaje del cliente actual para obtener la hora a la que se ha enviado
+                            Mensaje lastMessage = clientes.get(paquete.getPort()).getMensajes().get(currentClient.getMensajes().size()-1);
+                            mensajeCliente = mensajeCliente.concat(" - "+currentClient.getNombre()+" - "+lastMessage.getCreatedAt().getHour() +":"+lastMessage.getCreatedAt().getMinute());
                         }else{
                             System.out.println("Adios "+currentClient.getNombre());
                             clientes.remove(currentClient.getPort());
