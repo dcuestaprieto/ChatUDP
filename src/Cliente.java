@@ -48,18 +48,28 @@ public class Cliente extends Thread{
             escribirAlServidor(servidor,nombre);
             mandarClavePublica(servidor, publicKey);
 
-            String respuestaServidor;
+            //String respuestaServidor;
 
             while(true){
+                new Thread(()->{
+                    while(true) {
+                        String respuestaServidor;
+                        try {
+                            respuestaServidor = recibirMensajeServidor(servidor);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        System.out.println(respuestaServidor);
+                    }
+                }).start();
                 String mensajeParaServidor = Metodos.getString("Escribe un mensaje: ");
                 if(!mensajeParaServidor.equals("exit")){
                     escribirAlServidor(servidor,mensajeParaServidor);
                 }else{
                     escribirAlServidor(servidor,"exit");
-                    break;
+                    System.out.println("Adios "+nombre);
+                    System.exit(0);
                 }
-                respuestaServidor = recibirMensajeServidor(servidor);
-                System.out.println(respuestaServidor);
             }
 
         } catch(BindException be){
