@@ -13,6 +13,7 @@ import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Servidor {
     public static final int PORT = 1234;
@@ -27,8 +28,9 @@ public class Servidor {
     }
 
     private static final Map<Integer,ClienteModelo> clientes = new HashMap<>();
+    private static ReentrantLock lock = new ReentrantLock();
     public static PublicKey serverPublicKey;
-    public static PrivateKey serverPrivateKey;
+    private static PrivateKey serverPrivateKey;
 
     static {
         try {
@@ -81,7 +83,9 @@ public class Servidor {
                         esMensaje = true;
                         if(!mensajeCliente.equals("exit")){
                             //si el mensaje es diferente de exit, lo añado el paquete a su lista de mensajes
+                            lock.lock();
                             clientes.get(paquete.getPort()).addMessage(mensajeCliente);
+                            lock.unlock();
                             System.out.println("mensaje de "+currentClient.getNombre()+": "+mensajeCliente);
                             //Obtengo el último mensaje del cliente actual para obtener la hora a la que se ha enviado
                             Mensaje lastMessage = clientes.get(paquete.getPort()).getMensajes().get(currentClient.getMensajes().size()-1);
@@ -96,7 +100,9 @@ public class Servidor {
                 }else {
 
                     //cuando el cliente se conecta por primera vez tengo acceso a su nombre
+                    lock.lock();
                     clientes.put(paquete.getPort(),new ClienteModelo(mensajeCliente, paquete.getAddress(),paquete.getPort()));
+                    lock.unlock();
                     System.out.println("Usuario añadido");
                 }
 
